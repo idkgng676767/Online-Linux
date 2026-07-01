@@ -172,7 +172,6 @@ export type BootPhase = 'off' | 'logo' | 'loading' | 'transition' | 'desktop' | 
 
 export interface AuthState {
   isAuthenticated: boolean;
-  isGuest: boolean;
   userName: string;
 }
 
@@ -183,6 +182,7 @@ export interface AuthState {
 export interface OSState {
   bootPhase: BootPhase;
   auth: AuthState;
+  authToken?: string;
   windows: Window[];
   apps: AppDefinition[];
   desktopIcons: DesktopIcon[];
@@ -204,7 +204,7 @@ export interface OSState {
 
 export type OSAction =
   | { type: 'SET_BOOT_PHASE'; phase: BootPhase }
-  | { type: 'LOGIN'; isGuest: boolean }
+  | { type: 'LOGIN'; username: string; token: string }
   | { type: 'LOGOUT' }
   | { type: 'OPEN_WINDOW'; appId: string; title?: string }
   | { type: 'CLOSE_WINDOW'; windowId: string }

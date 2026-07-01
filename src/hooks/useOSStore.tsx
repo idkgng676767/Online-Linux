@@ -66,7 +66,8 @@ const loadDesktopIcons = (): DesktopIcon[] => {
 
 const initialState: OSState = {
   bootPhase: 'off',
-  auth: { isAuthenticated: false, isGuest: false, userName: 'User' },
+  auth: { isAuthenticated: false, userName: 'User' },
+  authToken: undefined,
   windows: [],
   apps: APP_REGISTRY,
   desktopIcons: loadDesktopIcons(),
@@ -102,7 +103,8 @@ function osReducer(state: OSState, action: OSAction): OSState {
     case 'LOGIN': {
       return {
         ...state,
-        auth: { isAuthenticated: true, isGuest: action.isGuest, userName: action.isGuest ? 'Guest' : 'User' },
+        auth: { isAuthenticated: true, userName: action.username },
+        authToken: action.token,
         bootPhase: 'desktop',
       };
     }
@@ -110,7 +112,8 @@ function osReducer(state: OSState, action: OSAction): OSState {
     case 'LOGOUT': {
       return {
         ...state,
-        auth: { isAuthenticated: false, isGuest: false, userName: 'User' },
+        auth: { isAuthenticated: false, userName: 'User' },
+        authToken: undefined,
         windows: [],
         bootPhase: 'login',
         activeWindowId: null,

@@ -1,35 +1,59 @@
 // ============================================================
-// LoginScreen — Blurred wallpaper + centered login card
+// LoginScreen — Real auth (login/register) via backend API
 // ============================================================
 
 import { useState, useCallback, memo } from 'react';
-import { LogOut, Moon, Power, User } from 'lucide-react';
+import { Moon, Power, User, LogIn, UserPlus } from 'lucide-react';
 import { useOS } from '@/hooks/useOSStore';
+
+const API_BASE = 'http://localhost:5001/api/auth';
 
 const LoginScreen = memo(function LoginScreen() {
   const { dispatch } = useOS();
+  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isUnlocking, setIsUnlocking] = useState(false);
-  const [error, setError] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleUnlock = useCallback(() => {
-    setIsUnlocking(true);
-    setError(false);
-    setTimeout(() => {
-      dispatch({ type: 'LOGIN', isGuest: false });
-    }, 800);
-  }, [dispatch]);
-
-  const handleGuest = useCallback(() => {
-    dispatch({ type: 'LOGIN', isGuest: true });
-  }, [dispatch]);
+  const handleSubmit = useCallback(async () => {
+    if (!username.trim() || !password) {
+      setError('Please fill in all fields');
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    try {
+      const endpoint = mode === 'login' ? `${API_BASE}/login` : `${API_BASE}/register`;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.trim(), password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || data.error || `${mode === 'login' ? 'Login' : 'Registration'} failed`);
+        return;
+      }
+      dispatch({ type: 'LOGIN', username: data.username, token: data.token });
+    } catch (err) {
+      setError('Could not connect to server');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [mode, username, password, dispatch]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') handleUnlock();
+      if (e.key === 'Enter') handleSubmit();
     },
-    [handleUnlock]
+    [handleSubmit]
   );
+
+  const switchMode = useCallback(() => {
+    setMode((m) => (m === 'login' ? 'register' : 'login'));
+    setError('');
+  }, []);
 
   return (
     <div
@@ -67,22 +91,24 @@ const LoginScreen = memo(function LoginScreen() {
           <User size={36} className="text-white" />
         </div>
 
-        {/* Username */}
-        <h2 className="text-xl font-semibold text-[#E0E0E0]">User</h2>
+        {/* Mode title */}
+        <h2 className="text-xl font-semibold text-[#E0E0E0]">
+          {mode === 'login' ? 'Sign In' : 'Create Account'}
+        </h2>
 
-        {/* Password input */}
+        {/* Username input */}
         <div className="w-full mt-6 relative">
           <input
-            type="password"
-            value={password}
-            onChange={(e) => { setPassword(e.target.value); setError(false); }}
+            type="text"
+            value={username}
+            onChange={(e) => { setUsername(e.target.value); setError(''); }}
             onKeyDown={handleKeyDown}
-            placeholder="Password"
+            placeholder="Username"
+            autoComplete="username"
             className="w-full h-11 rounded-full px-5 text-sm text-[#E0E0E0] outline-none transition-all"
             style={{
               background: '#1A1A1A',
               border: `1px solid ${error ? '#F44336' : 'rgba(255,255,255,0.1)'}`,
-              boxShadow: error ? '0 0 0 3px rgba(244,67,54,0.15)' : undefined,
             }}
             onFocus={(e) => {
               if (!error) e.currentTarget.style.borderColor = '#7C4DFF';
@@ -95,37 +121,70 @@ const LoginScreen = memo(function LoginScreen() {
           />
         </div>
 
-        {/* Unlock button */}
+        {/* Password input */}
+        <div className="w-full mt-3 relative">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => { setPassword(e.target.value); setError(''); }}
+            onKeyDown={handleKeyDown}
+            placeholder="Password"
+            autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
+            className="w-full h-11 rounded-full px-5 text-sm text-[#E0E0E0] outline-none transition-all"
+            style={{
+              background: '#1A1A1A',
+              border: `1px solid ${error ? '#F44336' : 'rgba(255,255,255,0.1)'}`,
+            }}
+            onFocus={(e) => {
+              if (!error) e.currentTarget.style.borderColor = '#7C4DFF';
+              e.currentTarget.style.boxShadow = '0 0 0 3px rgba(124,77,255,0.15)';
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = error ? '#F44336' : 'rgba(255,255,255,0.1)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+          />
+        </div>
+
+        {/* Error message */}
+        {error && (
+          <p className="mt-2 text-xs text-[#F44336] text-center w-full">{error}</p>
+        )}
+
+        {/* Submit button */}
         <button
-          onClick={handleUnlock}
-          disabled={isUnlocking}
-          className="w-full h-11 rounded-full mt-4 text-sm font-semibold text-white transition-colors"
+          onClick={handleSubmit}
+          disabled={isLoading}
+          className="w-full h-11 rounded-full mt-4 text-sm font-semibold text-white transition-colors flex items-center justify-center gap-2"
           style={{
-            background: isUnlocking ? '#673AB7' : '#7C4DFF',
+            background: isLoading ? '#673AB7' : '#7C4DFF',
             transform: 'scale(1)',
             transition: 'all 150ms ease',
           }}
-          onMouseEnter={(e) => { if (!isUnlocking) e.currentTarget.style.background = '#9575FF'; }}
-          onMouseLeave={(e) => { if (!isUnlocking) e.currentTarget.style.background = '#7C4DFF'; }}
+          onMouseEnter={(e) => { if (!isLoading) e.currentTarget.style.background = '#9575FF'; }}
+          onMouseLeave={(e) => { if (!isLoading) e.currentTarget.style.background = '#7C4DFF'; }}
           onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.97)'; }}
           onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
         >
-          {isUnlocking ? (
-            <div className="flex items-center justify-center gap-2">
+          {isLoading ? (
+            <>
               <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
-              <span>Unlocking...</span>
-            </div>
+              <span>{mode === 'login' ? 'Signing in...' : 'Creating account...'}</span>
+            </>
           ) : (
-            'Unlock'
+            <>
+              {mode === 'login' ? <LogIn size={16} /> : <UserPlus size={16} />}
+              {mode === 'login' ? 'Sign In' : 'Create Account'}
+            </>
           )}
         </button>
 
-        {/* Guest login */}
+        {/* Toggle login / register */}
         <button
-          onClick={handleGuest}
+          onClick={switchMode}
           className="mt-3 text-sm text-[#7C4DFF] hover:text-[#9575FF] transition-colors"
         >
-          Log in as Guest
+          {mode === 'login' ? "Don't have an account? Register" : 'Already have an account? Sign In'}
         </button>
 
         {/* Power options */}
@@ -137,9 +196,6 @@ const LoginScreen = memo(function LoginScreen() {
           </button>
           <button className="w-8 h-8 rounded-lg flex items-center justify-center text-[#9E9E9E] hover:text-[#E0E0E0] hover:bg-white/[0.06] transition-all">
             <Moon size={16} />
-          </button>
-          <button className="w-8 h-8 rounded-lg flex items-center justify-center text-[#9E9E9E] hover:text-[#E0E0E0] hover:bg-white/[0.06] transition-all">
-            <LogOut size={16} />
           </button>
         </div>
       </div>
